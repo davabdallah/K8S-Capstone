@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: events-web
+  name: events-web
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: events-web
+      ver: v1.0
+  template:
+    metadata:
+      labels:
+        app: events-web
+        ver: v1.0
+    spec:
+      containers:
+      - image: davabdallah/events-website
+        name: events-web
+        ports:
+        - containerPort: 8080
+        env:
+        - name: SERVER
+          value: "http://events-api-svc:8082"
+        volumeMounts:
+        - name: events-web-config
+          mountPath: "/var/www/html"
+      volumes:
+      - name: events-web-config
+        persistentVolumeClaim:
+          claimName: hello-web-disk
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: hello-web-disk
+spec:
+  storageClassName: gp2
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: events-web-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: events-web
+  minReplicas: 2
+  maxReplicas: 6
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 60
